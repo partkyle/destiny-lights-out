@@ -1,0 +1,10 @@
+[package]
+name = "destiny-lights-out"
+version = "0.1.0"
+authors = ["Kyle Partridge <partkyle@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+piston_window = "0.98.0"
