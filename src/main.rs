@@ -1,5 +1,7 @@
 extern crate piston_window;
 
+mod board_view;
+
 use piston_window::*;
 
 fn main() {
@@ -8,15 +10,11 @@ fn main() {
         .exit_on_esc(true)
         .build()
         .unwrap();
+
+    let board_view = board_view::BoardView::new();
     while let Some(event) = window.next() {
         window.draw_2d(&event, |context, graphics, _device| {
-            clear([1.0; 4], graphics);
-            rectangle(
-                [1.0, 0.0, 0.0, 1.0], // red
-                [0.0, 0.0, 100.0, 100.0],
-                context.transform,
-                graphics,
-            );
+            board_view.draw(context, graphics);
         });
     }
 }
