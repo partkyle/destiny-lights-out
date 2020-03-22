@@ -6,7 +6,7 @@ use piston_window::*;
 
 fn main() {
     let window_size = [640, 480];
-    let mut window: PistonWindow = WindowSettings::new("Hello Piston!", window_size)
+    let mut window: PistonWindow = WindowSettings::new("Lights Out", window_size)
         .exit_on_esc(true)
         .build()
         .unwrap();
