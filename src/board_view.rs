@@ -82,6 +82,11 @@ impl BoardView {
         }
     }
 
+    pub fn set_size(&mut self, width: f64, height: f64) {
+        self.board_config.width = width;
+        self.board_config.height = height;
+    }
+
     fn board_rect(&self) -> [f64; 4] {
         [0.0, 0.0, self.calc_width(), self.calc_height()]
     }

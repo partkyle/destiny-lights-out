@@ -11,8 +11,10 @@ fn main() {
         .build()
         .unwrap();
 
-    let board_view = board_view::BoardView::new();
+    let mut board_view = board_view::BoardView::new();
     while let Some(event) = window.next() {
+        let size = window.size();
+        board_view.set_size(size.width, size.height);
         window.draw_2d(&event, |context, graphics, _device| {
             board_view.draw(context, graphics);
         });
