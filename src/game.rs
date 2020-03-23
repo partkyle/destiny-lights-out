@@ -10,13 +10,15 @@ impl Colors {
         Colors {
             // converting all of these from 0-255 values to ratios
             background: [132.0 / 255.0, 121.0 / 255.0, 115.0 / 255.0, 1.0],
-            slot_color: [132.0 / 255.0, 255.0 / 255.0, 115.0 / 255.0, 1.0],
+            // using white to indicate that nothing is being drawn
+            slot_color: [255.0 / 255.0, 255.0 / 255.0, 255.0 / 255.0, 1.0],
         }
     }
 }
 
+#[derive(Clone)]
 pub struct GameConfig {
-    board_size: [u64; 2],
+    board_size: [usize; 2],
 }
 
 impl GameConfig {
@@ -42,15 +44,56 @@ impl BoardConfig {
     }
 }
 
-pub struct BoardView {
+#[derive(Clone)]
+enum State {
+    Red,
+    Green,
+    Blue,
+}
+
+impl State {
+    pub fn color(&self) -> [f64; 4] {
+        match *self {
+            State::Red => [1.0, 0.0, 0.0, 1.0],
+            State::Green => [0.0, 1.0, 0.0, 1.0],
+            State::Blue => [0.0, 0.0, 1.0, 1.0],
+        }
+    }
+
+    pub fn next(&self) -> State {
+        match *self {
+            State::Red => State::Green,
+            State::Green => State::Blue,
+            State::Blue => State::Red,
+        }
+    }
+}
+
+pub struct GameController {
+    config: GameConfig,
+
+    board: Vec<Vec<State>>,
+}
+
+impl GameController {
+    pub fn new(config: GameConfig) -> GameController {
+        let board = vec![vec![State::Red; config.board_size[1]]; config.board_size[0]];
+        GameController {
+            config: config,
+            board: board,
+        }
+    }
+}
+
+pub struct Game {
     colors: Colors,
     game_config: GameConfig,
     board_config: BoardConfig,
 }
 
-impl BoardView {
-    pub fn new() -> BoardView {
-        BoardView {
+impl Game {
+    pub fn new() -> Game {
+        Game {
             colors: Colors::new(),
             game_config: GameConfig::default(),
             board_config: BoardConfig::default(),
@@ -80,6 +123,8 @@ impl BoardView {
                 );
             }
         }
+
+        // draw the game state
     }
 
     pub fn set_size(&mut self, width: f64, height: f64) {
@@ -99,7 +144,7 @@ impl BoardView {
         self.board_config.height
     }
 
-    fn piece_rect(&self, x: u64, y: u64) -> [f64; 4] {
+    fn piece_rect(&self, x: usize, y: usize) -> [f64; 4] {
         // 640 / 4
         let piece_width = (self.board_config.width
             - ((self.game_config.board_size[0] + 1) as f64 * self.board_config.line_width))

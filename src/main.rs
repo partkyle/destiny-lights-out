@@ -1,8 +1,10 @@
 extern crate piston_window;
 
-mod board_view;
+mod game;
 
 use piston_window::*;
+
+use game::Game;
 
 fn main() {
     let window_size = [640, 480];
@@ -11,12 +13,12 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut board_view = board_view::BoardView::new();
+    let mut game = Game::new();
     while let Some(event) = window.next() {
         let size = window.size();
-        board_view.set_size(size.width, size.height);
+        game.set_size(size.width, size.height);
         window.draw_2d(&event, |context, graphics, _device| {
-            board_view.draw(context, graphics);
+            game.draw(context, graphics);
         });
     }
 }
