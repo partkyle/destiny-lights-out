@@ -1,4 +1,4 @@
-use piston_window::{clear, rectangle, Context, Graphics};
+use piston_window::{clear, rectangle, Button, Context, GenericEvent, Graphics, MouseButton};
 
 pub struct Colors {
     background: [f32; 4],
@@ -16,7 +16,7 @@ impl Colors {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct GameConfig {
     board_size: [usize; 2],
 }
@@ -54,9 +54,9 @@ enum State {
 impl State {
     pub fn color(&self) -> [f32; 4] {
         match *self {
-            State::Red => [1.0, 0.0, 0.0, 1.0],
-            State::Green => [0.0, 1.0, 0.0, 1.0],
-            State::Blue => [0.0, 0.0, 1.0, 1.0],
+            State::Red => [1.0, 0.5, 0.5, 1.0],
+            State::Green => [0.5, 1.0, 0.5, 1.0],
+            State::Blue => [0.5, 0.5, 1.0, 1.0],
         }
     }
 
@@ -69,11 +69,30 @@ impl State {
     }
 }
 
+#[derive(Debug)]
+pub struct Piece {
+    position: [usize; 2], // (x,y)
+    rect: [f64; 4],
+}
+
+impl Piece {
+    pub fn new(position: [usize; 2], rect: [f64; 4]) -> Piece {
+        Piece {
+            position: position,
+            rect: rect,
+        }
+    }
+}
+
 pub struct Game {
     colors: Colors,
     game_config: GameConfig,
     board_config: BoardConfig,
     board: Vec<Vec<State>>,
+
+    board_rectangles: Vec<Piece>,
+
+    cursor: [f64; 2],
 }
 
 impl Game {
@@ -81,15 +100,41 @@ impl Game {
         let game_config = GameConfig::default();
         let mut board =
             vec![vec![State::Red; game_config.board_size[1]]; game_config.board_size[0]];
-
         board[0][3] = State::Green;
         board[2][2] = State::Blue;
 
-        Game {
+        let mut game = Game {
             colors: Colors::new(),
             game_config: game_config,
             board_config: BoardConfig::default(),
             board: board,
+            board_rectangles: vec![],
+            cursor: [0.0; 2],
+        };
+
+        game.init();
+
+        game
+    }
+
+    fn init(&mut self) {
+        self.set_size(self.board_config.width, self.board_config.height);
+    }
+
+    pub fn handle_event<E: GenericEvent>(&mut self, event: &E) {
+        // a bit of an odd behavior here
+        // there is no cursor information on the button press, so we need to store the position
+        // so we can reference it later.
+        //
+        // This means that if you click off the game, and click back on, you will get a mouse event,
+        // but the cursor position with be (0,0). This is going to work for this game due to the padding,
+        // but I should figure out what the intended behavior is here.
+        if let Some(pos) = event.mouse_cursor_args() {
+            self.cursor = pos;
+        }
+
+        if let Some(Button::Mouse(MouseButton::Left)) = event.press_args() {
+            self.handle_click(self.cursor)
         }
     }
 
@@ -105,34 +150,30 @@ impl Game {
             graphics,
         );
 
-        // draw individual rectangles for the board slots (for pieces)
-        for y in 0..self.game_config.board_size[1] {
-            for x in 0..self.game_config.board_size[0] {
-                rectangle(
-                    self.colors.slot_color,
-                    self.piece_rect(x, y),
-                    context.transform,
-                    graphics,
-                );
-            }
+        for piece in self.board_rectangles.iter() {
+            rectangle(
+                self.colors.slot_color,
+                piece.rect,
+                context.transform,
+                graphics,
+            );
         }
 
-        // draw the game state
-        for y in 0..self.game_config.board_size[1] {
-            for x in 0..self.game_config.board_size[0] {
-                rectangle(
-                    self.state(x, y).color(),
-                    self.piece_rect(x, y),
-                    context.transform,
-                    graphics,
-                );
-            }
+        for piece in self.board_rectangles.iter() {
+            rectangle(
+                self.state(piece.position).color(),
+                piece.rect,
+                context.transform,
+                graphics,
+            );
         }
     }
 
     pub fn set_size(&mut self, width: f64, height: f64) {
         self.board_config.width = width;
         self.board_config.height = height;
+
+        self.board_rectangles = self.create_board_rectangles();
     }
 
     fn board_rect(&self) -> [f64; 4] {
@@ -145,6 +186,19 @@ impl Game {
 
     fn calc_height(&self) -> f64 {
         self.board_config.height
+    }
+
+    fn create_board_rectangles(&self) -> Vec<Piece> {
+        let mut pieces = vec![];
+        for y in 0..self.game_config.board_size[1] {
+            for x in 0..self.game_config.board_size[0] {
+                let position = [x, y];
+                let rect = self.piece_rect(x, y);
+                pieces.push(Piece::new(position, rect));
+            }
+        }
+
+        pieces
     }
 
     fn piece_rect(&self, x: usize, y: usize) -> [f64; 4] {
@@ -165,7 +219,64 @@ impl Game {
         [piece_pos_x, piece_pos_y, piece_width, piece_height]
     }
 
-    fn state(&self, x: usize, y: usize) -> &State {
+    fn state(&self, position: [usize; 2]) -> &State {
+        let (x, y) = (position[0], position[1]);
         &self.board[x][y]
     }
+
+    fn set_state(&mut self, position: [usize; 2]) {
+        let (x, y) = (position[0], position[1]);
+        self.board[x][y] = self.board[x][y].next();
+    }
+
+    fn handle_click(&mut self, position: [f64; 2]) {
+        println!("x: {}, y: {}", position[0], position[1]);
+
+        // check if the click collides with a rectangle
+        if let Some(piece) = self.find_rect_at_position(position) {
+            println!("gottem boys: {:?}", piece);
+
+            // TODO: figure out why I can't move here. I should be able to call methods
+            // within methods, and I don't know what I'm doing wrong here.
+            for &position in get_affected_cells(self.game_config, piece.position).iter() {
+                self.set_state(position);
+            }
+        }
+    }
+
+    fn find_rect_at_position(&self, position: [f64; 2]) -> Option<&Piece> {
+        // rectangle collision
+        // there is probably a method in Piston I can use so I don't have to implement it
+        self.board_rectangles.iter().find(|&r| {
+            position[0] > r.rect[0]
+                && position[1] > r.rect[1]
+                && position[0] < r.rect[0] + r.rect[2]
+                && position[1] < r.rect[1] + r.rect[3]
+        })
+    }
+}
+
+fn get_affected_cells(game_config: GameConfig, position: [usize; 2]) -> Vec<[usize; 2]> {
+    let mut result = vec![];
+
+    // the clicked cell is affected
+    result.push(position);
+
+    // get all values of x with the same y posistion
+    for x in 0..game_config.board_size[0] {
+        // this is already accounted for above
+        if x != position[0] {
+            result.push([x, position[1]])
+        }
+    }
+
+    // get all values of y with the same x posistion
+    for y in 0..game_config.board_size[1] {
+        // this is already accounted for above
+        if y != position[1] {
+            result.push([position[0], y])
+        }
+    }
+
+    result
 }

@@ -15,8 +15,14 @@ fn main() {
 
     let mut game = Game::new();
     while let Some(event) = window.next() {
+        // update the size in the case some resizes have happened
         let size = window.size();
         game.set_size(size.width, size.height);
+
+        // handle events
+        game.handle_event(&event);
+
+        // draw
         window.draw_2d(&event, |context, graphics, _device| {
             game.draw(context, graphics);
         });
