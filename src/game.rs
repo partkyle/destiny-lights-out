@@ -1,5 +1,10 @@
 use piston_window::{clear, rectangle, Button, Context, GenericEvent, Graphics, MouseButton};
 
+pub enum GameState {
+    Running,
+    Quit,
+}
+
 pub struct Colors {
     background: [f32; 4],
     slot_color: [f32; 4],
@@ -23,7 +28,7 @@ pub struct GameConfig {
 
 impl GameConfig {
     pub fn default() -> GameConfig {
-        GameConfig { board_size: [4, 5] }
+        GameConfig { board_size: [3, 3] }
     }
 }
 
@@ -44,7 +49,7 @@ impl BoardConfig {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 enum State {
     Red,
     Green,
@@ -98,10 +103,15 @@ pub struct Game {
 impl Game {
     pub fn new() -> Game {
         let game_config = GameConfig::default();
+
+        // TODO: have the boards start in a random state.
+        // are all states solvable?
         let mut board =
             vec![vec![State::Red; game_config.board_size[1]]; game_config.board_size[0]];
-        board[0][3] = State::Green;
-        board[2][2] = State::Blue;
+
+        // Archer's Line
+        // https://www.youtube.com/watch?time_continue=338&v=9qoTcHQXbDc&feature=emb_logo
+        board[0][1] = State::Green;
 
         let mut game = Game {
             colors: Colors::new(),
@@ -121,7 +131,7 @@ impl Game {
         self.set_size(self.board_config.width, self.board_config.height);
     }
 
-    pub fn handle_event<E: GenericEvent>(&mut self, event: &E) {
+    pub fn handle_event<E: GenericEvent>(&mut self, event: &E) -> GameState {
         // a bit of an odd behavior here
         // there is no cursor information on the button press, so we need to store the position
         // so we can reference it later.
@@ -136,6 +146,14 @@ impl Game {
         if let Some(Button::Mouse(MouseButton::Left)) = event.press_args() {
             self.handle_click(self.cursor)
         }
+
+        // TODO: is the events the best place to handling winning logic?
+
+        if self.is_won() {
+            return GameState::Quit;
+        }
+
+        GameState::Running
     }
 
     pub fn draw<G: Graphics>(&self, context: Context, graphics: &mut G) {
@@ -217,6 +235,39 @@ impl Game {
             y as f64 * (piece_height + self.board_config.line_width) + self.board_config.line_width;
 
         [piece_pos_x, piece_pos_y, piece_width, piece_height]
+    }
+
+    fn is_won(&self) -> bool {
+        // TODO: look at other implementations. I just felt like learning how to use a hashmap.
+
+        use std::collections::HashMap;
+
+        let all_colors = [State::Red, State::Green, State::Blue];
+        let board_size = self.game_config.board_size[0] * self.game_config.board_size[1];
+
+        let mut counts = HashMap::new();
+        for &c in all_colors.iter() {
+            counts.insert(c, 0usize);
+        }
+
+        for row in self.board.iter() {
+            for &state in row.iter() {
+                let count = match counts.get(&state) {
+                    None => 1,
+                    Some(count) => count + 1,
+                };
+                counts.insert(state, count);
+            }
+        }
+
+        let mut result = false;
+        for c in all_colors.iter() {
+            // TODO: figuring out the references is easy when using the compiler
+            // but is there a better way to get to know them?
+            result |= counts.get(c) == Some(&board_size);
+        }
+
+        result
     }
 
     fn state(&self, position: [usize; 2]) -> &State {

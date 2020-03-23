@@ -4,7 +4,7 @@ mod game;
 
 use piston_window::*;
 
-use game::Game;
+use game::{Game, GameState};
 
 fn main() {
     let window_size = [640, 480];
@@ -20,7 +20,10 @@ fn main() {
         game.set_size(size.width, size.height);
 
         // handle events
-        game.handle_event(&event);
+        if let GameState::Quit = game.handle_event(&event) {
+            // TODO: should we just be quitting on win? that seems boring
+            return;
+        }
 
         // draw
         window.draw_2d(&event, |context, graphics, _device| {
