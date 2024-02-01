@@ -3,7 +3,7 @@ Destiny Lights Out
 
 In Destiny 2, there was a variation of the Lights out game where the goal is to make all of the lights the same color.
 
-This is an implementation of this.
+This is an implementation of that mini-game.
 
 It uses the [piston](https://www.piston.rs/) game engine.
 
