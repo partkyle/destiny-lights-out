@@ -281,12 +281,8 @@ impl Game {
     }
 
     fn handle_click(&mut self, position: [f64; 2]) {
-        println!("x: {}, y: {}", position[0], position[1]);
-
         // check if the click collides with a rectangle
         if let Some(piece) = self.find_rect_at_position(position) {
-            println!("gottem boys: {:?}", piece);
-
             // TODO: figure out why I can't move here. I should be able to call methods
             // within methods, and I don't know what I'm doing wrong here.
             for &position in get_affected_cells(self.game_config, piece.position).iter() {
